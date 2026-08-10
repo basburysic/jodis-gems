@@ -10,6 +10,6 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const id = Number((await params).id);
-  const order = confirmOrder(id);
+  const order = await confirmOrder(id);
   return NextResponse.json({ order });
 }

@@ -9,7 +9,7 @@ export async function DELETE(
   if (!token) return NextResponse.json({ error: "cart_token is required" }, { status: 400 });
 
   const id = Number((await params).id);
-  const result = removeFromCart(id, token);
+  const result = await removeFromCart(id, token);
   if ("error" in result) {
     return NextResponse.json({ error: result.error }, { status: 404 });
   }

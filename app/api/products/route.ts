@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
   const admin = isAdminRequest(req);
   const category = req.nextUrl.searchParams.get("category") as Category | null;
 
-  const products = admin ? listAllProductsForAdmin() : listProducts(category ?? undefined);
+  const products = admin ? await listAllProductsForAdmin() : await listProducts(category ?? undefined);
   return NextResponse.json({ products });
 }
 
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Price must be a positive number" }, { status: 400 });
   }
 
-  const product = createProduct({
+  const product = await createProduct({
     category,
     name: name.trim(),
     price_cents,

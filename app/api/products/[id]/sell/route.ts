@@ -11,12 +11,12 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const id = Number((await params).id);
-  const existing = getProduct(id);
+  const existing = await getProduct(id);
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (existing.quantity_available <= 0) {
     return NextResponse.json({ error: "Already sold out" }, { status: 400 });
   }
 
-  const product = decrementForLivestreamSale(id);
+  const product = await decrementForLivestreamSale(id);
   return NextResponse.json({ product });
 }

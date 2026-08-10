@@ -14,9 +14,9 @@ export default async function AdminDashboardPage() {
   const authed = verifySessionToken(jar.get(SESSION_COOKIE)?.value);
   if (!authed) redirect("/admin/login");
 
-  const products = listAllProductsForAdmin();
-  const orders = listOrders();
-  const settings = getSettings();
+  const products = await listAllProductsForAdmin();
+  const orders = await listOrders();
+  const settings = await getSettings();
   const pendingCount = orders.filter((o) => o.status === "pending").length;
 
   return (

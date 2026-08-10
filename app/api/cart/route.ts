@@ -4,5 +4,6 @@ import { getCart, getCartCategory } from "@/lib/inventory";
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get("token");
   if (!token) return NextResponse.json({ items: [], category: null });
-  return NextResponse.json({ items: getCart(token), category: getCartCategory(token) });
+  const [items, category] = await Promise.all([getCart(token), getCartCategory(token)]);
+  return NextResponse.json({ items, category });
 }

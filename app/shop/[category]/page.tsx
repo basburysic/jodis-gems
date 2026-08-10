@@ -16,7 +16,7 @@ export default async function ShopCategoryPage({
     notFound();
   }
 
-  const products = listProducts(category as Category);
+  const products = await listProducts(category as Category);
 
   return (
     <div className="flex min-h-screen flex-col">

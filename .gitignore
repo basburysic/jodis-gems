@@ -36,9 +36,10 @@ yarn-error.log*
 # vercel
 .vercel
 
-# local database & uploaded product photos
-/data
-/public/uploads
+# cloudflare / opennext build output + local D1/R2 emulation state
+/.open-next
+/.wrangler
+.dev.vars
 
 # typescript
 *.tsbuildinfo

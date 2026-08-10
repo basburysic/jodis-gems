@@ -7,6 +7,6 @@ export async function POST(req: NextRequest) {
   if (typeof cart_token !== "string" || !cart_token) {
     return NextResponse.json({ error: "cart_token is required" }, { status: 400 });
   }
-  clearCart(cart_token);
+  await clearCart(cart_token);
   return NextResponse.json({ ok: true });
 }

@@ -10,7 +10,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const id = Number((await params).id);
-  const existing = getProduct(id);
+  const existing = await getProduct(id);
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const body = await req.json();
@@ -29,7 +29,7 @@ export async function PATCH(
     if (key in body) patch[key] = body[key];
   }
 
-  const product = updateProduct(id, patch);
+  const product = await updateProduct(id, patch);
   return NextResponse.json({ product });
 }
 
@@ -41,6 +41,6 @@ export async function DELETE(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const id = Number((await params).id);
-  deleteProduct(id);
+  await deleteProduct(id);
   return NextResponse.json({ ok: true });
 }

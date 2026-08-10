@@ -3,9 +3,9 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { listProducts } from "@/lib/inventory";
 
-export default function Home() {
-  const paparazzi = listProducts("paparazzi");
-  const bombParty = listProducts("bomb_party");
+export default async function Home() {
+  const paparazzi = await listProducts("paparazzi");
+  const bombParty = await listProducts("bomb_party");
 
   const paparazziCount = paparazzi.reduce((sum, p) => sum + p.quantity_available, 0);
   const bombPartyCount = bombParty.reduce((sum, p) => sum + p.quantity_available, 0);

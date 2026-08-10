@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid payment method" }, { status: 400 });
   }
 
-  const result = checkout({
+  const result = await checkout({
     cart_token,
     buyer_name: typeof buyer_name === "string" ? buyer_name : "",
     buyer_address: typeof buyer_address === "string" ? buyer_address : "",

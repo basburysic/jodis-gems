@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminRequest } from "@/lib/adminGuard";
-import fs from "node:fs";
-import path from "node:path";
-import crypto from "node:crypto";
+import { getUploadsBucket } from "@/lib/db";
 
 const ALLOWED_TYPES: Record<string, string> = {
   "image/jpeg": "jpg",
@@ -30,12 +28,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "File too large (max 8MB)" }, { status: 400 });
   }
 
-  const uploadsDir = path.join(process.cwd(), "public", "uploads");
-  fs.mkdirSync(uploadsDir, { recursive: true });
-
   const filename = `${crypto.randomUUID()}.${ext}`;
-  const buffer = Buffer.from(await file.arrayBuffer());
-  fs.writeFileSync(path.join(uploadsDir, filename), buffer);
+  await getUploadsBucket().put(filename, await file.arrayBuffer(), {
+    httpMetadata: { contentType: file.type },
+  });
 
   return NextResponse.json({ path: `/uploads/${filename}` }, { status: 201 });
 }

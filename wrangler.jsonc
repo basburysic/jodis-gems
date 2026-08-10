@@ -1,0 +1,17 @@
+{
+  "name": "jodis-gems",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-01-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  }
+  // D1 database and R2 bucket bindings are intentionally NOT defined here.
+  // Attach them via the Cloudflare dashboard instead (Workers & Pages ->
+  // jodis-gems -> Settings -> Bindings), once the database/bucket exist --
+  // see README.md "Deploying to Cloudflare". Binding names must match
+  // exactly what lib/db.ts requests:
+  //   D1 database  -> binding name "DB"
+  //   R2 bucket    -> binding name "UPLOADS"
+}

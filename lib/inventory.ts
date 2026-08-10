@@ -1,4 +1,4 @@
-import db from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { CATEGORY_LABEL } from "@/lib/format";
 import type {
   CartItem,
@@ -13,12 +13,11 @@ import type {
 const RESERVATION_HOLD_HOURS = 24;
 
 /** Expires any pending hold past its 24h window and restores stock. Call before any read/write that touches inventory. */
-export function sweepExpiredReservations() {
-  const expired = db
-    .prepare(
-      `SELECT * FROM reservations WHERE status = 'pending' AND expires_at <= datetime('now')`
-    )
-    .all() as Reservation[];
+export async function sweepExpiredReservations() {
+  const db = getDb();
+  const { results: expired } = await db
+    .prepare(`SELECT * FROM reservations WHERE status = 'pending' AND expires_at <= datetime('now')`)
+    .all<Reservation>();
 
   if (expired.length === 0) return;
 
@@ -27,37 +26,41 @@ export function sweepExpiredReservations() {
     `UPDATE products SET quantity_available = quantity_available + 1 WHERE id = ?`
   );
 
-  const tx = db.transaction((rows: Reservation[]) => {
-    for (const r of rows) {
-      expireStmt.run(r.id);
-      restoreStmt.run(r.product_id);
-    }
-  });
-  tx(expired);
+  await db.batch(
+    expired.flatMap((r) => [expireStmt.bind(r.id), restoreStmt.bind(r.product_id)])
+  );
 }
 
-export function listProducts(category?: Category): Product[] {
-  sweepExpiredReservations();
+export async function listProducts(category?: Category): Promise<Product[]> {
+  await sweepExpiredReservations();
+  const db = getDb();
   if (category) {
-    return db
+    const { results } = await db
       .prepare(`SELECT * FROM products WHERE category = ? AND active = 1 ORDER BY name`)
-      .all(category) as Product[];
+      .bind(category)
+      .all<Product>();
+    return results;
   }
-  return db
+  const { results } = await db
     .prepare(`SELECT * FROM products WHERE active = 1 ORDER BY category, name`)
-    .all() as Product[];
+    .all<Product>();
+  return results;
 }
 
-export function listAllProductsForAdmin(): Product[] {
-  sweepExpiredReservations();
-  return db.prepare(`SELECT * FROM products ORDER BY category, name`).all() as Product[];
+export async function listAllProductsForAdmin(): Promise<Product[]> {
+  await sweepExpiredReservations();
+  const { results } = await getDb()
+    .prepare(`SELECT * FROM products ORDER BY category, name`)
+    .all<Product>();
+  return results;
 }
 
-export function getProduct(id: number): Product | undefined {
-  return db.prepare(`SELECT * FROM products WHERE id = ?`).get(id) as Product | undefined;
+export async function getProduct(id: number): Promise<Product | undefined> {
+  const row = await getDb().prepare(`SELECT * FROM products WHERE id = ?`).bind(id).first<Product>();
+  return row ?? undefined;
 }
 
-export function createProduct(input: {
+export async function createProduct(input: {
   category: Category;
   name: string;
   price_cents: number;
@@ -66,25 +69,28 @@ export function createProduct(input: {
   quantity_available: number;
   venmo_username?: string;
   square_link?: string;
-}): Product {
-  const stmt = db.prepare(`
-    INSERT INTO products (category, name, price_cents, description, image_path, quantity_available, venmo_username, square_link)
-    VALUES (@category, @name, @price_cents, @description, @image_path, @quantity_available, @venmo_username, @square_link)
-  `);
-  const result = stmt.run({
-    category: input.category,
-    name: input.name,
-    price_cents: input.price_cents,
-    description: input.description ?? "",
-    image_path: input.image_path ?? "",
-    quantity_available: input.quantity_available,
-    venmo_username: input.venmo_username ?? "",
-    square_link: input.square_link ?? "",
-  });
-  return getProduct(Number(result.lastInsertRowid))!;
+}): Promise<Product> {
+  const row = await getDb()
+    .prepare(
+      `INSERT INTO products (category, name, price_cents, description, image_path, quantity_available, venmo_username, square_link)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       RETURNING *`
+    )
+    .bind(
+      input.category,
+      input.name,
+      input.price_cents,
+      input.description ?? "",
+      input.image_path ?? "",
+      input.quantity_available,
+      input.venmo_username ?? "",
+      input.square_link ?? ""
+    )
+    .first<Product>();
+  return row!;
 }
 
-export function updateProduct(
+export async function updateProduct(
   id: number,
   patch: Partial<
     Pick<
@@ -100,37 +106,51 @@ export function updateProduct(
       | "category"
     >
   >
-): Product | undefined {
-  const existing = getProduct(id);
+): Promise<Product | undefined> {
+  const existing = await getProduct(id);
   if (!existing) return undefined;
   const merged = { ...existing, ...patch };
-  db.prepare(
-    `UPDATE products SET category=@category, name=@name, price_cents=@price_cents, description=@description,
-     image_path=@image_path, quantity_available=@quantity_available, venmo_username=@venmo_username,
-     square_link=@square_link, active=@active WHERE id=@id`
-  ).run({ ...merged, id });
+  await getDb()
+    .prepare(
+      `UPDATE products SET category=?, name=?, price_cents=?, description=?,
+       image_path=?, quantity_available=?, venmo_username=?, square_link=?, active=? WHERE id=?`
+    )
+    .bind(
+      merged.category,
+      merged.name,
+      merged.price_cents,
+      merged.description,
+      merged.image_path,
+      merged.quantity_available,
+      merged.venmo_username,
+      merged.square_link,
+      merged.active,
+      id
+    )
+    .run();
   return getProduct(id);
 }
 
-export function deleteProduct(id: number) {
-  db.prepare(`DELETE FROM products WHERE id = ?`).run(id);
+export async function deleteProduct(id: number) {
+  await getDb().prepare(`DELETE FROM products WHERE id = ?`).bind(id).run();
 }
 
 /** Manual livestream sale: remove one piece from stock without going through the cart/checkout flow. */
-export function decrementForLivestreamSale(id: number): Product | undefined {
-  const product = getProduct(id);
+export async function decrementForLivestreamSale(id: number): Promise<Product | undefined> {
+  const product = await getProduct(id);
   if (!product || product.quantity_available <= 0) return product;
-  db.prepare(
-    `UPDATE products SET quantity_available = quantity_available - 1 WHERE id = ?`
-  ).run(id);
+  await getDb()
+    .prepare(`UPDATE products SET quantity_available = quantity_available - 1 WHERE id = ?`)
+    .bind(id)
+    .run();
   return getProduct(id);
 }
 
-export function setQuantity(id: number, quantity: number): Product | undefined {
-  db.prepare(`UPDATE products SET quantity_available = ? WHERE id = ?`).run(
-    Math.max(0, quantity),
-    id
-  );
+export async function setQuantity(id: number, quantity: number): Promise<Product | undefined> {
+  await getDb()
+    .prepare(`UPDATE products SET quantity_available = ? WHERE id = ?`)
+    .bind(Math.max(0, quantity), id)
+    .run();
   return getProduct(id);
 }
 
@@ -139,9 +159,9 @@ export function setQuantity(id: number, quantity: number): Product | undefined {
 // ---------------------------------------------------------------------------
 
 /** Category of whatever's currently sitting in this cart, or null if it's empty. Paparazzi and BOMB Party can never share a cart or order. */
-export function getCartCategory(cartToken: string): Category | null {
-  sweepExpiredReservations();
-  const row = db
+export async function getCartCategory(cartToken: string): Promise<Category | null> {
+  await sweepExpiredReservations();
+  const row = await getDb()
     .prepare(
       `SELECT p.category AS category
        FROM reservations r
@@ -149,21 +169,22 @@ export function getCartCategory(cartToken: string): Category | null {
        WHERE r.cart_token = ? AND r.order_id IS NULL AND r.status = 'pending'
        LIMIT 1`
     )
-    .get(cartToken) as { category: Category } | undefined;
+    .bind(cartToken)
+    .first<{ category: Category }>();
   return row?.category ?? null;
 }
 
 /** Adds one unit of a product to a shopper's cart and holds it for RESERVATION_HOLD_HOURS. */
-export function addToCart(input: {
+export async function addToCart(input: {
   product_id: number;
   cart_token: string;
-}): { reservation: Reservation } | { error: string; reason?: "category_mismatch" } {
-  sweepExpiredReservations();
-  const product = getProduct(input.product_id);
+}): Promise<{ reservation: Reservation } | { error: string; reason?: "category_mismatch" }> {
+  await sweepExpiredReservations();
+  const product = await getProduct(input.product_id);
   if (!product || !product.active) return { error: "Product not found" };
   if (product.quantity_available <= 0) return { error: "Sold out" };
 
-  const currentCategory = getCartCategory(input.cart_token);
+  const currentCategory = await getCartCategory(input.cart_token);
   if (currentCategory && currentCategory !== product.category) {
     return {
       error: `Your cart already has ${CATEGORY_LABEL[currentCategory]} pieces — Paparazzi and BOMB Party have to be checked out separately. Clear your cart to switch collections.`,
@@ -171,29 +192,27 @@ export function addToCart(input: {
     };
   }
 
-  const tx = db.transaction(() => {
-    db.prepare(
-      `UPDATE products SET quantity_available = quantity_available - 1 WHERE id = ?`
-    ).run(product.id);
-
-    const result = db
+  const db = getDb();
+  const [, insertResult] = await db.batch<Reservation>([
+    db
+      .prepare(`UPDATE products SET quantity_available = quantity_available - 1 WHERE id = ?`)
+      .bind(product.id),
+    db
       .prepare(
         `INSERT INTO reservations
           (product_id, product_name_snapshot, price_cents_snapshot, cart_token, expires_at)
-         VALUES (?, ?, ?, ?, datetime('now', '+${RESERVATION_HOLD_HOURS} hours'))`
+         VALUES (?, ?, ?, ?, datetime('now', '+${RESERVATION_HOLD_HOURS} hours'))
+         RETURNING *`
       )
-      .run(product.id, product.name, product.price_cents, input.cart_token);
-    return db
-      .prepare(`SELECT * FROM reservations WHERE id = ?`)
-      .get(result.lastInsertRowid) as Reservation;
-  });
+      .bind(product.id, product.name, product.price_cents, input.cart_token),
+  ]);
 
-  return { reservation: tx() };
+  return { reservation: insertResult.results[0] };
 }
 
-export function getCart(cartToken: string): CartItem[] {
-  sweepExpiredReservations();
-  return db
+export async function getCart(cartToken: string): Promise<CartItem[]> {
+  await sweepExpiredReservations();
+  const { results } = await getDb()
     .prepare(
       `SELECT r.id AS reservation_id, r.product_id, r.product_name_snapshot AS name,
               r.price_cents_snapshot AS price_cents, p.image_path, r.expires_at
@@ -202,85 +221,93 @@ export function getCart(cartToken: string): CartItem[] {
        WHERE r.cart_token = ? AND r.order_id IS NULL AND r.status = 'pending'
        ORDER BY r.id`
     )
-    .all(cartToken) as CartItem[];
+    .bind(cartToken)
+    .all<CartItem>();
+  return results;
 }
 
 /** Removes a single held unit from a shopper's cart (must not have been checked out yet). */
-export function removeFromCart(
+export async function removeFromCart(
   reservationId: number,
   cartToken: string
-): { ok: true } | { error: string } {
-  const reservation = db
+): Promise<{ ok: true } | { error: string }> {
+  const db = getDb();
+  const reservation = await db
     .prepare(`SELECT * FROM reservations WHERE id = ?`)
-    .get(reservationId) as Reservation | undefined;
+    .bind(reservationId)
+    .first<Reservation>();
   if (!reservation || reservation.cart_token !== cartToken || reservation.order_id !== null) {
     return { error: "Not found in your cart" };
   }
   if (reservation.status !== "pending") return { ok: true };
 
-  const tx = db.transaction(() => {
-    db.prepare(`UPDATE reservations SET status = 'cancelled' WHERE id = ?`).run(reservationId);
-    db.prepare(
-      `UPDATE products SET quantity_available = quantity_available + 1 WHERE id = ?`
-    ).run(reservation.product_id);
-  });
-  tx();
+  await db.batch([
+    db.prepare(`UPDATE reservations SET status = 'cancelled' WHERE id = ?`).bind(reservationId),
+    db
+      .prepare(`UPDATE products SET quantity_available = quantity_available + 1 WHERE id = ?`)
+      .bind(reservation.product_id),
+  ]);
   return { ok: true };
 }
 
 /** Empties a shopper's cart (e.g. to switch from Paparazzi to BOMB Party or vice versa), restoring stock for every held unit. */
-export function clearCart(cartToken: string) {
-  const rows = db
+export async function clearCart(cartToken: string) {
+  const db = getDb();
+  const { results: rows } = await db
     .prepare(
       `SELECT * FROM reservations WHERE cart_token = ? AND order_id IS NULL AND status = 'pending'`
     )
-    .all(cartToken) as Reservation[];
+    .bind(cartToken)
+    .all<Reservation>();
 
-  const tx = db.transaction(() => {
-    for (const r of rows) {
-      db.prepare(`UPDATE reservations SET status = 'cancelled' WHERE id = ?`).run(r.id);
-      db.prepare(
-        `UPDATE products SET quantity_available = quantity_available + 1 WHERE id = ?`
-      ).run(r.product_id);
-    }
-  });
-  tx();
+  if (rows.length === 0) return;
+
+  const cancelStmt = db.prepare(`UPDATE reservations SET status = 'cancelled' WHERE id = ?`);
+  const restoreStmt = db.prepare(
+    `UPDATE products SET quantity_available = quantity_available + 1 WHERE id = ?`
+  );
+  await db.batch(rows.flatMap((r) => [cancelStmt.bind(r.id), restoreStmt.bind(r.product_id)]));
 }
 
 // ---------------------------------------------------------------------------
 // Checkout / Orders
 // ---------------------------------------------------------------------------
 
-export function checkout(input: {
+export async function checkout(input: {
   cart_token: string;
   buyer_name: string;
   buyer_address: string;
   payment_method: PaymentMethod;
-}): { order: OrderWithItems } | { error: string } {
-  sweepExpiredReservations();
-  const items = db
+}): Promise<{ order: OrderWithItems } | { error: string }> {
+  await sweepExpiredReservations();
+  const db = getDb();
+  const { results: items } = await db
     .prepare(
       `SELECT * FROM reservations WHERE cart_token = ? AND order_id IS NULL AND status = 'pending'`
     )
-    .all(input.cart_token) as Reservation[];
+    .bind(input.cart_token)
+    .all<Reservation>();
 
   if (items.length === 0) return { error: "Your cart is empty" };
   if (!input.buyer_name.trim()) return { error: "Name is required" };
   if (!input.buyer_address.trim()) return { error: "Address is required" };
 
-  const orderId = db.transaction(() => {
-    const result = db
-      .prepare(
-        `INSERT INTO orders (buyer_name, buyer_address, payment_method) VALUES (?, ?, ?)`
-      )
-      .run(input.buyer_name.trim(), input.buyer_address.trim(), input.payment_method);
-    const id = Number(result.lastInsertRowid);
-    const attach = db.prepare(`UPDATE reservations SET order_id = ? WHERE id = ?`);
-    for (const item of items) attach.run(id, item.id);
-    return id;
-  })();
+  // Not batched with the attach step below: the order's id doesn't exist until
+  // this insert returns, and D1 batches can't feed one statement's output into
+  // the next. Worst case on a mid-request failure is a harmless orphan order
+  // row with no items — inventory counts are unaffected either way.
+  const order = await db
+    .prepare(
+      `INSERT INTO orders (buyer_name, buyer_address, payment_method) VALUES (?, ?, ?) RETURNING *`
+    )
+    .bind(input.buyer_name.trim(), input.buyer_address.trim(), input.payment_method)
+    .first<Order>();
+  const orderId = order!.id;
 
-  return { order: getOrder(orderId)! };
+  const attach = db.prepare(`UPDATE reservations SET order_id = ? WHERE id = ?`);
+  await db.batch(items.map((item) => attach.bind(orderId, item.id)));
+
+  return { order: (await getOrder(orderId))! };
 }
 
 function rowsToOrder(order: Order, rows: Reservation[]): OrderWithItems {
@@ -302,50 +329,58 @@ function rowsToOrder(order: Order, rows: Reservation[]): OrderWithItems {
   };
 }
 
-export function getOrder(orderId: number): OrderWithItems | undefined {
-  const order = db.prepare(`SELECT * FROM orders WHERE id = ?`).get(orderId) as
-    | Order
-    | undefined;
+export async function getOrder(orderId: number): Promise<OrderWithItems | undefined> {
+  const db = getDb();
+  const order = await db.prepare(`SELECT * FROM orders WHERE id = ?`).bind(orderId).first<Order>();
   if (!order) return undefined;
-  const rows = db
+  const { results: rows } = await db
     .prepare(`SELECT * FROM reservations WHERE order_id = ? ORDER BY id`)
-    .all(orderId) as Reservation[];
+    .bind(orderId)
+    .all<Reservation>();
   return rowsToOrder(order, rows);
 }
 
-export function listOrders(): OrderWithItems[] {
-  sweepExpiredReservations();
-  const orders = db.prepare(`SELECT * FROM orders ORDER BY created_at DESC`).all() as Order[];
-  return orders.map((order) => {
-    const rows = db
+export async function listOrders(): Promise<OrderWithItems[]> {
+  await sweepExpiredReservations();
+  const db = getDb();
+  const { results: orders } = await db
+    .prepare(`SELECT * FROM orders ORDER BY created_at DESC`)
+    .all<Order>();
+
+  const results: OrderWithItems[] = [];
+  for (const order of orders) {
+    const { results: rows } = await db
       .prepare(`SELECT * FROM reservations WHERE order_id = ? ORDER BY id`)
-      .all(order.id) as Reservation[];
-    return rowsToOrder(order, rows);
-  });
+      .bind(order.id)
+      .all<Reservation>();
+    results.push(rowsToOrder(order, rows));
+  }
+  return results;
 }
 
-export function confirmOrder(orderId: number): OrderWithItems | undefined {
-  db.prepare(`UPDATE reservations SET status = 'confirmed' WHERE order_id = ? AND status = 'pending'`).run(
-    orderId
-  );
+export async function confirmOrder(orderId: number): Promise<OrderWithItems | undefined> {
+  await getDb()
+    .prepare(`UPDATE reservations SET status = 'confirmed' WHERE order_id = ? AND status = 'pending'`)
+    .bind(orderId)
+    .run();
   return getOrder(orderId);
 }
 
 /** Cancels an order's still-pending items and restores their stock. */
-export function cancelOrder(orderId: number): OrderWithItems | undefined {
-  const rows = db
+export async function cancelOrder(orderId: number): Promise<OrderWithItems | undefined> {
+  const db = getDb();
+  const { results: rows } = await db
     .prepare(`SELECT * FROM reservations WHERE order_id = ? AND status = 'pending'`)
-    .all(orderId) as Reservation[];
+    .bind(orderId)
+    .all<Reservation>();
 
-  const tx = db.transaction(() => {
-    for (const r of rows) {
-      db.prepare(`UPDATE reservations SET status = 'cancelled' WHERE id = ?`).run(r.id);
-      db.prepare(
-        `UPDATE products SET quantity_available = quantity_available + 1 WHERE id = ?`
-      ).run(r.product_id);
-    }
-  });
-  tx();
+  if (rows.length > 0) {
+    const cancelStmt = db.prepare(`UPDATE reservations SET status = 'cancelled' WHERE id = ?`);
+    const restoreStmt = db.prepare(
+      `UPDATE products SET quantity_available = quantity_available + 1 WHERE id = ?`
+    );
+    await db.batch(rows.flatMap((r) => [cancelStmt.bind(r.id), restoreStmt.bind(r.product_id)]));
+  }
   return getOrder(orderId);
 }
 

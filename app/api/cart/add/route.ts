@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "cart_token is required" }, { status: 400 });
   }
 
-  const result = addToCart({ product_id: Number(product_id), cart_token });
+  const result = await addToCart({ product_id: Number(product_id), cart_token });
   if ("error" in result) {
     return NextResponse.json({ error: result.error, reason: result.reason }, { status: 409 });
   }

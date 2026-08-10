@@ -25,8 +25,13 @@ an admin panel for managing stock and confirming payments.
 
 ## Running it locally
 
+This app runs on **Cloudflare Workers** (database: D1, photo storage: R2), so local
+dev emulates those the same way Cloudflare runs them in production — no separate
+"local mode" code path to keep in sync.
+
 ```bash
 npm install
+npx wrangler d1 migrations apply DB --local   # first time only, creates the tables
 npm run dev
 ```
 
@@ -35,6 +40,10 @@ Open [http://localhost:3000](http://localhost:3000) for the shop, or
 
 **Default admin password is `changeme123`** — change it (see below) before you start
 using this for real.
+
+> Local D1/R2 data lives under `.wrangler/` (git-ignored) and is independent of
+> whatever's live on Cloudflare — adding test products locally never touches
+> production.
 
 ## First-time setup
 
@@ -59,25 +68,44 @@ using this for real.
 
 ## Data & photos
 
-Everything lives locally in a SQLite file at `data/jodis-gems.db`, and uploaded
-product photos go in `public/uploads/`. Both are git-ignored. Back up the `data/`
-folder occasionally if this matters to you — there's no cloud copy until you deploy
-somewhere with persistent storage.
+Products, orders, and settings live in a **Cloudflare D1** database (binding `DB`).
+Uploaded product photos live in a **Cloudflare R2** bucket (binding `UPLOADS`) and are
+served back through `/uploads/[filename]`. Locally these are emulated by Wrangler
+under `.wrangler/` (git-ignored); in production they're the real thing on Cloudflare.
 
-## Deploying so it's live on the internet
+## Deploying to Cloudflare (one-time setup)
 
-This currently runs only on your own machine. When you're ready to put it online:
+This repo is connected to Cloudflare the same way **lazy-dm** is — Cloudflare builds
+and deploys automatically on every push to `main`, no local CLI login needed. One-time
+setup in the Cloudflare dashboard:
 
-- **Database:** SQLite works for local dev, but most hosts (Vercel, Netlify, etc.)
-  don't offer persistent local disk, so `data/jodis-gems.db` would reset on every
-  deploy. Before deploying, swap in a hosted database (e.g.
-  [Turso](https://turso.tech) for SQLite-compatible hosting, or Postgres via
-  [Neon](https://neon.tech)/[Supabase](https://supabase.com)) — ask me and I can wire
-  that up.
-- **Photo uploads:** same issue — `public/uploads` won't persist on most hosts.
-  Swap the upload route to a storage service (e.g. Vercel Blob, Cloudflare R2, or
-  Supabase Storage).
-- **Environment variables:** set `ADMIN_PASSWORD` and `SESSION_SECRET` in your host's
-  dashboard instead of `.env.local`.
+1. **Connect the repo.** Workers & Pages → Create → Connect to Git → pick
+   `basbury2208/jodis-gems`. When it asks for build settings:
+   - Build command: `npm run cf:build`
+   - Deploy command: `npx wrangler deploy` (if it's asked for separately —
+     some flows run this automatically after the build command)
+2. **Create the database.** Workers & Pages → D1 → Create database → name it
+   `jodis-gems-db`. Open it → **Console** tab → paste in the contents of
+   [`migrations/0001_init.sql`](migrations/0001_init.sql) and run it once to create
+   the tables.
+3. **Create the bucket.** R2 → Create bucket → name it `jodis-gems-uploads`.
+4. **Attach both to the Worker.** Your `jodis-gems` Worker → Settings → Bindings →
+   Add binding:
+   - D1 database → binding name **`DB`** → select `jodis-gems-db`
+   - R2 bucket → binding name **`UPLOADS`** → select `jodis-gems-uploads`
 
-Ask me when you're ready and I'll walk through it with your chosen host.
+   (Binding names must match exactly — that's what the code looks for.)
+5. **Set secrets.** Same Settings → Variables and Secrets → add:
+   - `ADMIN_PASSWORD` — your real admin password (not `changeme123`)
+   - `SESSION_SECRET` — any long random string (the one in `.env.local` works, or
+     generate a fresh one)
+6. **Deploy.** Save and redeploy (or just push a commit) so the bindings/secrets take
+   effect. You'll get a `*.workers.dev` URL to start with; a real domain can be
+   attached later under Settings → Domains & Routes.
+
+> ⚠️ I wasn't able to runtime-test the D1/R2 code locally in my own dev environment —
+> local `wrangler`/Miniflare couldn't spawn its emulation process there (an
+> environment quirk on my end, not your machine). It's type-checked and the query
+> logic was written carefully against Cloudflare's documented D1 API, but the very
+> first real test of this flow will be either you running it locally or Cloudflare's
+> own build/deploy. Try `npm run dev` locally first and flag anything that looks off.
