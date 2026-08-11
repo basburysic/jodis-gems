@@ -114,6 +114,12 @@ setup in the Cloudflare dashboard:
    - `ADMIN_PASSWORD` — your real admin password (not `changeme123`)
    - `SESSION_SECRET` — any long random string (the one in `.env.local` works, or
      generate a fresh one)
-5. **Turn the URL on.** Worker → **Domains** (or Domains and routes) → enable the
+   - Use type **Secret**, not Variable (Variable stores it as visible plain text).
+   - ⚠️ Saving a secret does **not** create a new deployed version the way a binding
+     change does — the currently-active deployment keeps running without it until a
+     *new* deployment actually happens. Push a commit (even a trivial one) or otherwise
+     trigger a fresh deploy right after saving secrets, then confirm in **Deployments**
+     that the newest version (the one with your secrets) is the one at 100% traffic.
+4. **Turn the URL on.** Worker → **Domains** (or Domains and routes) → enable the
    `workers.dev` route. Your live link is `jodis-gems.<your-subdomain>.workers.dev`.
-6. **Deploy.** Push a commit (or hit Retry build) so it picks up the bindings/secrets.
+5. **Deploy.** Push a commit (or hit Retry build) so it picks up the bindings/secrets.
