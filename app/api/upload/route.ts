@@ -29,7 +29,8 @@ export async function POST(req: NextRequest) {
   }
 
   const filename = `${crypto.randomUUID()}.${ext}`;
-  await getUploadsBucket().put(filename, await file.arrayBuffer(), {
+  const bucket = await getUploadsBucket();
+  await bucket.put(filename, await file.arrayBuffer(), {
     httpMetadata: { contentType: file.type },
   });
 

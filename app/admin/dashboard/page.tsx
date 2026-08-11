@@ -9,6 +9,8 @@ import OrdersQueue from "@/components/admin/OrdersQueue";
 import SettingsForm from "@/components/admin/SettingsForm";
 import LogoutButton from "@/components/admin/LogoutButton";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminDashboardPage() {
   const jar = await cookies();
   const authed = verifySessionToken(jar.get(SESSION_COOKIE)?.value);

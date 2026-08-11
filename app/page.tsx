@@ -3,6 +3,9 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { listProducts } from "@/lib/inventory";
 
+// Always live — stock counts must never be baked in at build time.
+export const dynamic = "force-dynamic";
+
 export default async function Home() {
   const paparazzi = await listProducts("paparazzi");
   const bombParty = await listProducts("bomb_party");

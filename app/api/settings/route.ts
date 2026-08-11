@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAdminRequest } from "@/lib/adminGuard";
 import { getSettings, updateSettings } from "@/lib/settings";
 
+export const dynamic = "force-dynamic";
+
 // GET is public: the storefront needs the default Venmo/Square payment handles
 // to build "pay" links even for signed-out shoppers.
 export async function GET() {

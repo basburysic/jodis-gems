@@ -6,7 +6,8 @@ export interface Settings {
 }
 
 export async function getSettings(): Promise<Settings> {
-  const { results } = await getDb()
+  const db = await getDb();
+  const { results } = await db
     .prepare(`SELECT key, value FROM settings`)
     .all<{ key: string; value: string }>();
   const map = Object.fromEntries(results.map((r) => [r.key, r.value]));
@@ -17,7 +18,7 @@ export async function getSettings(): Promise<Settings> {
 }
 
 export async function updateSettings(patch: Partial<Settings>): Promise<Settings> {
-  const db = getDb();
+  const db = await getDb();
   const entries = Object.entries(patch).filter(([, value]) => value !== undefined);
   if (entries.length > 0) {
     const stmt = db.prepare(

@@ -6,6 +6,9 @@ import { listProducts } from "@/lib/inventory";
 import { CATEGORY_LABEL } from "@/lib/format";
 import type { Category } from "@/lib/types";
 
+// Always live — stock counts must never be baked in at build time.
+export const dynamic = "force-dynamic";
+
 export default async function ShopCategoryPage({
   params,
 }: {
