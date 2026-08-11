@@ -80,7 +80,7 @@ and deploys automatically on every push to `main`, no local CLI login needed. On
 setup in the Cloudflare dashboard:
 
 1. **Connect the repo.** Workers & Pages → Create → Connect to Git → pick
-   `basbury2208/jodis-gems`. When it asks for build settings:
+   `basburysic/jodis-gems`. When it asks for build settings:
    - Build command: `npm run cf:build`
    - Deploy command: `npx wrangler deploy` (if it's asked for separately —
      some flows run this automatically after the build command)
