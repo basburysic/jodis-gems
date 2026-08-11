@@ -9,13 +9,12 @@
 // @cloudflare/workers-types package globally redeclares Request/Response
 // (Body.json() becomes `unknown` instead of `any`), which breaks every
 // `NextRequest`/`NextResponse` call site across the app.
-import type { D1Database, R2Bucket, Fetcher } from "@cloudflare/workers-types";
+import type { D1Database, Fetcher } from "@cloudflare/workers-types";
 
 export {};
 
 declare global {
   interface CloudflareEnv {
-    UPLOADS: R2Bucket;
     DB: D1Database;
     ASSETS: Fetcher;
     ADMIN_PASSWORD: string;

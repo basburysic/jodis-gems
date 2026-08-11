@@ -1,5 +1,5 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import type { D1Database, R2Bucket } from "@cloudflare/workers-types";
+import type { D1Database } from "@cloudflare/workers-types";
 
 // Async mode, not the sync default: sync mode throws if Next.js tries to
 // statically pre-render a route at build time (there's no live Cloudflare
@@ -11,10 +11,4 @@ import type { D1Database, R2Bucket } from "@cloudflare/workers-types";
 export async function getDb(): Promise<D1Database> {
   const { env } = await getCloudflareContext({ async: true });
   return env.DB;
-}
-
-/** The R2 bucket binding for uploaded product photos. */
-export async function getUploadsBucket(): Promise<R2Bucket> {
-  const { env } = await getCloudflareContext({ async: true });
-  return env.UPLOADS;
 }

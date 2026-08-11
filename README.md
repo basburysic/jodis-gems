@@ -25,9 +25,9 @@ an admin panel for managing stock and confirming payments.
 
 ## Running it locally
 
-This app runs on **Cloudflare Workers** (database: D1, photo storage: R2), so local
-dev emulates those the same way Cloudflare runs them in production — no separate
-"local mode" code path to keep in sync.
+This app runs on **Cloudflare Workers** (database: D1), so local dev emulates that the
+same way Cloudflare runs it in production — no separate "local mode" code path to keep
+in sync.
 
 ```bash
 npm install
@@ -41,9 +41,8 @@ Open [http://localhost:3000](http://localhost:3000) for the shop, or
 **Default admin password is `changeme123`** — change it (see below) before you start
 using this for real.
 
-> Local D1/R2 data lives under `.wrangler/` (git-ignored) and is independent of
-> whatever's live on Cloudflare — adding test products locally never touches
-> production.
+> Local D1 data lives under `.wrangler/` (git-ignored) and is independent of whatever's
+> live on Cloudflare — adding test products locally never touches production.
 
 ## First-time setup
 
@@ -64,14 +63,24 @@ using this for real.
      it into that product's own Square link field (in the inventory editor — every
      product can override the site-wide default).
 4. **Add your inventory.** In `/admin` → *Inventory* → *Add a piece*: choose the
-   category, name, price, starting quantity, and optionally a photo and description.
+   category, name, price, starting quantity, and optionally a description. There's no
+   photo upload right now (see below) — pieces show a placeholder icon instead.
 
-## Data & photos
+## Data
 
 Products, orders, and settings live in a **Cloudflare D1** database (binding `DB`).
-Uploaded product photos live in a **Cloudflare R2** bucket (binding `UPLOADS`) and are
-served back through `/uploads/[filename]`. Locally these are emulated by Wrangler
-under `.wrangler/` (git-ignored); in production they're the real thing on Cloudflare.
+Locally this is emulated by Wrangler under `.wrangler/` (git-ignored); in production
+it's the real thing on Cloudflare.
+
+### No product photos (yet)
+
+Photo uploads would need Cloudflare R2 (file storage), which requires opting into a
+Cloudflare product separately from Workers/D1 — skipped for now by choice rather than
+built and left broken. Products show a placeholder gem icon instead. Options whenever
+you want photos back: enable R2 (genuinely free at this scale) and I'll wire the
+upload back up, or add a simpler "paste an image URL" field that needs no Cloudflare
+storage at all (photo would need to be hosted somewhere else, like an existing social
+post or a free image host).
 
 ## Deploying to Cloudflare (one-time setup)
 
@@ -88,24 +97,14 @@ setup in the Cloudflare dashboard:
    `jodis-gems-db`. Open it → **Console** tab → paste in the contents of
    [`migrations/0001_init.sql`](migrations/0001_init.sql) and run it once to create
    the tables.
-3. **Create the bucket.** R2 → Create bucket → name it `jodis-gems-uploads`.
-4. **Attach both to the Worker.** Your `jodis-gems` Worker → Settings → Bindings →
-   Add binding:
-   - D1 database → binding name **`DB`** → select `jodis-gems-db`
-   - R2 bucket → binding name **`UPLOADS`** → select `jodis-gems-uploads`
-
-   (Binding names must match exactly — that's what the code looks for.)
-5. **Set secrets.** Same Settings → Variables and Secrets → add:
+3. **Attach it to the Worker.** Your `jodis-gems` Worker → **Bindings** tab → Add
+   binding → D1 database:
+   - Variable name → **`DB`** (must be exactly this — that's what the code looks for)
+   - D1 database → select `jodis-gems-db`
+4. **Set secrets.** Worker → **Settings** → Variables and Secrets → add:
    - `ADMIN_PASSWORD` — your real admin password (not `changeme123`)
    - `SESSION_SECRET` — any long random string (the one in `.env.local` works, or
      generate a fresh one)
-6. **Deploy.** Save and redeploy (or just push a commit) so the bindings/secrets take
-   effect. You'll get a `*.workers.dev` URL to start with; a real domain can be
-   attached later under Settings → Domains & Routes.
-
-> ⚠️ I wasn't able to runtime-test the D1/R2 code locally in my own dev environment —
-> local `wrangler`/Miniflare couldn't spawn its emulation process there (an
-> environment quirk on my end, not your machine). It's type-checked and the query
-> logic was written carefully against Cloudflare's documented D1 API, but the very
-> first real test of this flow will be either you running it locally or Cloudflare's
-> own build/deploy. Try `npm run dev` locally first and flag anything that looks off.
+5. **Turn the URL on.** Worker → **Domains** (or Domains and routes) → enable the
+   `workers.dev` route. Your live link is `jodis-gems.<your-subdomain>.workers.dev`.
+6. **Deploy.** Push a commit (or hit Retry build) so it picks up the bindings/secrets.

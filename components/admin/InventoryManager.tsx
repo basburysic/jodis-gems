@@ -1,19 +1,10 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { formatPrice, CATEGORY_LABEL } from "@/lib/format";
 import type { Category, Product } from "@/lib/types";
-
-async function uploadImage(file: File): Promise<string> {
-  const form = new FormData();
-  form.append("file", file);
-  const res = await fetch("/api/upload", { method: "POST", body: form });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error ?? "Upload failed");
-  return data.path as string;
-}
 
 function NewProductForm({ onCreated }: { onCreated: (p: Product) => void }) {
   const [category, setCategory] = useState<Category>("paparazzi");
@@ -21,25 +12,8 @@ function NewProductForm({ onCreated }: { onCreated: (p: Product) => void }) {
   const [price, setPrice] = useState("8");
   const [quantity, setQuantity] = useState("1");
   const [description, setDescription] = useState("");
-  const [imagePath, setImagePath] = useState("");
-  const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    setError("");
-    try {
-      setImagePath(await uploadImage(file));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
-    } finally {
-      setUploading(false);
-    }
-  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -59,7 +33,6 @@ function NewProductForm({ onCreated }: { onCreated: (p: Product) => void }) {
           name: name.trim(),
           price_cents,
           description,
-          image_path: imagePath,
           quantity_available: Math.max(0, parseInt(quantity, 10) || 0),
         }),
       });
@@ -73,8 +46,6 @@ function NewProductForm({ onCreated }: { onCreated: (p: Product) => void }) {
       setPrice(category === "paparazzi" ? "8" : "");
       setQuantity("1");
       setDescription("");
-      setImagePath("");
-      if (fileRef.current) fileRef.current.value = "";
     } finally {
       setSaving(false);
     }
@@ -144,29 +115,13 @@ function NewProductForm({ onCreated }: { onCreated: (p: Product) => void }) {
             className={inputClass}
           />
         </label>
-        <div className="sm:col-span-2">
-          <span className={labelClass}>Photo (optional)</span>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFile}
-            className="mt-1 block text-sm"
-          />
-          {uploading && <p className="mt-1 text-xs text-white/40">Uploading…</p>}
-          {imagePath && (
-            <div className="relative mt-2 h-20 w-20 overflow-hidden rounded-lg">
-              <Image src={imagePath} alt="preview" fill className="object-cover" />
-            </div>
-          )}
-        </div>
       </div>
 
       {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
 
       <button
         type="submit"
-        disabled={saving || uploading}
+        disabled={saving}
         className="btn-primary mt-4 rounded-full px-5 py-2 text-sm font-bold disabled:opacity-50"
       >
         {saving ? "Adding…" : "Add to inventory"}
