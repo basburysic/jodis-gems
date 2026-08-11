@@ -6,10 +6,18 @@
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
-  }
-  // The D1 database binding is intentionally NOT defined here. Attach it via
-  // the Cloudflare dashboard instead (Workers & Pages -> jodis-gems ->
-  // Bindings), once the database exists -- see README.md "Deploying to
-  // Cloudflare". Binding name must match exactly what lib/db.ts requests:
-  //   D1 database -> binding name "DB"
+  },
+  // Defined here (not just via the dashboard) so it survives every future
+  // deploy: this project auto-builds from Git on every push, and each build
+  // reads bindings fresh from this file — a dashboard-only binding gets
+  // dropped the next time new code is pushed. Learned this the hard way:
+  // the D1 binding was added via the dashboard, then wiped out by the very
+  // next auto-deploy, causing `env.DB` to be undefined at runtime.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "jodis-gems-db",
+      "database_id": "315ae58a-b583-400d-9aa4-94b0681de651"
+    }
+  ]
 }

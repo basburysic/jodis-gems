@@ -97,11 +97,16 @@ setup in the Cloudflare dashboard:
    `jodis-gems-db`. Open it → **Console** tab → paste in the contents of
    [`migrations/0001_init.sql`](migrations/0001_init.sql) and run it once to create
    the tables.
-3. **Attach it to the Worker.** Your `jodis-gems` Worker → **Bindings** tab → Add
-   binding → D1 database:
-   - Variable name → **`DB`** (must be exactly this — that's what the code looks for)
-   - D1 database → select `jodis-gems-db`
-4. **Set secrets.** Worker → **Settings** → Variables and Secrets → add:
+   - The database's **binding is already defined in `wrangler.jsonc`** (with its ID
+     baked in), so it's attached automatically on every deploy — no dashboard step
+     needed for this one. If you ever recreate the database from scratch, update the
+     `database_id` in `wrangler.jsonc` to match.
+   - ⚠️ Don't add/change bindings only through the dashboard's Bindings tab for this
+     project — this repo auto-deploys from every Git push, and each build reads
+     bindings fresh from `wrangler.jsonc`. A dashboard-only binding gets silently
+     dropped by the next push. If you need a new binding, add it to `wrangler.jsonc`
+     and push, not just the dashboard.
+3. **Set secrets.** Worker → **Settings** → Variables and Secrets → add:
    - `ADMIN_PASSWORD` — your real admin password (not `changeme123`)
    - `SESSION_SECRET` — any long random string (the one in `.env.local` works, or
      generate a fresh one)
