@@ -1,18 +1,23 @@
 # Jodi's Gems
 
-A storefront for two jewelry lines — **Paparazzi** (flat $8 each) and **BOMB Party**
-(priced individually) — with live inventory counts, a Venmo/Square checkout flow, and
-an admin panel for managing stock and confirming payments.
+A storefront for **Paparazzi** jewelry — every piece a flat $8 — with live inventory
+counts, a Venmo/Square checkout flow, and an admin panel for managing stock and
+confirming payments.
+
+> Previously also sold BOMB Party pieces; that collection was removed to make this a
+> Paparazzi-only site. The `category` field/type still exists under the hood (harmless,
+> and lets admin see/clean up any leftover BOMB Party rows in the database), but there's
+> no way to browse, add, or check out anything but Paparazzi from the storefront.
 
 ## How it works
 
-- **Shoppers** browse Paparazzi or BOMB Party, click a piece, and hit **Add to
-  Cart**. That instantly holds the piece for **24 hours** (stock count drops right
-  away) so nobody else can grab it out from under them. They can keep shopping
-  across both collections, adjust quantities in the cart, then **check out once**
-  at the end: name, address, and a single Venmo or Square payment for the whole
-  order. If they never pay, the hold on each piece automatically expires and it
-  goes back on sale — no cron job needed, it's checked every time the site loads.
+- **Shoppers** browse the shop, click a piece, and hit **Add to Cart**. That instantly
+  holds the piece for **24 hours** (stock count drops right away) so nobody else can
+  grab it out from under them. They can keep shopping, adjust quantities in the cart,
+  then **check out once** at the end: name, address, and a single Venmo or Square
+  payment for the whole order. If they never pay, the hold on each piece automatically
+  expires and it goes back on sale — no cron job needed, it's checked every time the
+  site loads.
 - **You (admin)** get a dashboard at `/admin` (with a Home button back to the
   storefront) to:
   - See orders awaiting payment — grouped by shopper, with their name, address,
@@ -55,16 +60,15 @@ using this for real.
    You still confirm payment by hand once you see it land in Venmo.
 3. **Set up Square.** Square has no simple no-account option like Venmo, so:
    - Log into your [Square Dashboard](https://squareup.com/dashboard) → **Payment
-     Links** (free, no API keys needed) → create a link (you can make one general
-     "Pay Jodi's Gems" link, or a specific one per pricier item).
+     Links** (free, no API keys needed) → create a link.
+   - Since everything's a flat $8, a flexible "any amount" link works fine for single
+     items — but remember carts can total more than $8 (multiple pieces checked out
+     together), so a link that lets the buyer adjust the amount (rather than one fixed
+     at exactly $8) is the safer choice.
    - Paste that link into *Payment settings* → **Square payment link**.
-   - Because Square links are usually fixed-amount, either make a flexible
-     "any amount" link, or for BOMB Party pieces create one link per item and paste
-     it into that product's own Square link field (in the inventory editor — every
-     product can override the site-wide default).
-4. **Add your inventory.** In `/admin` → *Inventory* → *Add a piece*: choose the
-   category, name, price, starting quantity, and optionally a description. There's no
-   photo upload right now (see below) — pieces show a placeholder icon instead.
+4. **Add your inventory.** In `/admin` → *Inventory* → *Add a piece*: name, price,
+   starting quantity, and optionally a description. There's no photo upload right now
+   (see below) — pieces show a placeholder icon instead.
 
 ## Data
 

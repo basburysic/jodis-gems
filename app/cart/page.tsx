@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
-import { formatPrice, venmoLink, CATEGORY_LABEL } from "@/lib/format";
+import { formatPrice, venmoLink } from "@/lib/format";
 import { getCartToken } from "@/lib/cartToken";
 import { useCart } from "@/components/CartProvider";
 import type { CartItem, PaymentMethod } from "@/lib/types";
@@ -55,7 +55,7 @@ export default function CartPage() {
   const [error, setError] = useState("");
   const [settings, setSettings] = useState<Settings>({ venmo_username: "", square_link: "" });
   const [confirmation, setConfirmation] = useState<OrderConfirmation | null>(null);
-  const { refresh, category: cartCategory } = useCart();
+  const { refresh } = useCart();
 
   async function loadCart() {
     const token = getCartToken();
@@ -161,12 +161,6 @@ export default function CartPage() {
       <SiteHeader />
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-10">
         <h1 className="text-3xl font-black gradient-text">Your Cart</h1>
-        {cartCategory && !confirmation && (
-          <p className="mt-1 text-sm text-white/50">
-            Shopping {CATEGORY_LABEL[cartCategory]} — Paparazzi and BOMB Party are checked out
-            separately.
-          </p>
-        )}
 
         {confirmation ? (
           <div className="mt-8 space-y-4">

@@ -7,7 +7,7 @@ import { formatPrice, CATEGORY_LABEL } from "@/lib/format";
 import type { Category, Product } from "@/lib/types";
 
 function NewProductForm({ onCreated }: { onCreated: (p: Product) => void }) {
-  const [category, setCategory] = useState<Category>("paparazzi");
+  const category: Category = "paparazzi";
   const [name, setName] = useState("");
   const [price, setPrice] = useState("8");
   const [quantity, setQuantity] = useState("1");
@@ -43,7 +43,7 @@ function NewProductForm({ onCreated }: { onCreated: (p: Product) => void }) {
       }
       onCreated(data.product);
       setName("");
-      setPrice(category === "paparazzi" ? "8" : "");
+      setPrice("8");
       setQuantity("1");
       setDescription("");
     } finally {
@@ -59,21 +59,6 @@ function NewProductForm({ onCreated }: { onCreated: (p: Product) => void }) {
     <form onSubmit={submit} className="glow-card mb-6 rounded-2xl p-5">
       <h3 className="mb-3 font-bold text-white/80">Add a piece</h3>
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block">
-          <span className={labelClass}>Collection</span>
-          <select
-            value={category}
-            onChange={(e) => {
-              const c = e.target.value as Category;
-              setCategory(c);
-              if (c === "paparazzi" && !price) setPrice("8");
-            }}
-            className={inputClass}
-          >
-            <option value="paparazzi">Paparazzi</option>
-            <option value="bomb_party">BOMB Party</option>
-          </select>
-        </label>
         <label className="block">
           <span className={labelClass}>Piece name</span>
           <input

@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Jodi's Gems",
-  description: "Paparazzi jewelry $8 flat + BOMB Party — shop live inventory.",
+  description: "Paparazzi jewelry, every piece $8 flat — shop live inventory.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -1,39 +1,8 @@
-import { notFound } from "next/navigation";
-import SiteHeader from "@/components/SiteHeader";
-import SiteFooter from "@/components/SiteFooter";
-import ProductGrid from "@/components/ProductGrid";
-import { listProducts } from "@/lib/inventory";
-import { CATEGORY_LABEL } from "@/lib/format";
-import type { Category } from "@/lib/types";
+import { redirect } from "next/navigation";
 
-// Always live — stock counts must never be baked in at build time.
-export const dynamic = "force-dynamic";
-
-export default async function ShopCategoryPage({
-  params,
-}: {
-  params: Promise<{ category: string }>;
-}) {
-  const { category } = await params;
-  if (category !== "paparazzi" && category !== "bomb_party") {
-    notFound();
-  }
-
-  const products = await listProducts(category as Category);
-
-  return (
-    <div className="flex min-h-screen flex-col">
-      <SiteHeader />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10">
-        <h1 className="text-3xl font-black gradient-text">{CATEGORY_LABEL[category]}</h1>
-        <p className="mt-1 text-white/60">
-          {category === "paparazzi" ? "Every piece is a flat $8." : "Priced individually."}
-        </p>
-        <div className="mt-8">
-          <ProductGrid initialProducts={products} category={category as Category} />
-        </div>
-      </main>
-      <SiteFooter />
-    </div>
-  );
+// The shop now lives at "/" (single collection, no more category picker).
+// This route only exists so old /shop/paparazzi or /shop/bomb_party links
+// still go somewhere sensible instead of 404ing.
+export default function ShopCategoryRedirect() {
+  redirect("/");
 }

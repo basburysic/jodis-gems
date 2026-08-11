@@ -13,12 +13,6 @@ export default function SiteHeader() {
           ✦ JODI&apos;S GEMS ✦
         </Link>
         <nav className="flex items-center gap-4 text-sm font-semibold">
-          <Link href="/shop/paparazzi" className="hover:text-[var(--hot-pink-light)]">
-            Paparazzi
-          </Link>
-          <Link href="/shop/bomb_party" className="hover:text-[var(--hot-pink-light)]">
-            BOMB Party
-          </Link>
           <Link
             href="/cart"
             className="btn-primary flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm"

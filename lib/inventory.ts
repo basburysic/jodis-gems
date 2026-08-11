@@ -195,7 +195,7 @@ export async function addToCart(input: {
   const currentCategory = await getCartCategory(input.cart_token);
   if (currentCategory && currentCategory !== product.category) {
     return {
-      error: `Your cart already has ${CATEGORY_LABEL[currentCategory]} pieces — Paparazzi and BOMB Party have to be checked out separately. Clear your cart to switch collections.`,
+      error: `Your cart already has ${CATEGORY_LABEL[currentCategory]} pieces, which can't be checked out together with this. Clear your cart first.`,
       reason: "category_mismatch",
     };
   }
