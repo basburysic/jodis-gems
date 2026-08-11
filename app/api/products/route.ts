@@ -4,7 +4,7 @@ import { createProduct, listAllProductsForAdmin, listProducts } from "@/lib/inve
 import type { Category } from "@/lib/types";
 
 export async function GET(req: NextRequest) {
-  const admin = isAdminRequest(req);
+  const admin = await isAdminRequest(req);
   const category = req.nextUrl.searchParams.get("category") as Category | null;
 
   const products = admin ? await listAllProductsForAdmin() : await listProducts(category ?? undefined);
@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  if (!isAdminRequest(req)) {
+  if (!(await isAdminRequest(req))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

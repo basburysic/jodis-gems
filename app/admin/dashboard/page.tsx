@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminDashboardPage() {
   const jar = await cookies();
-  const authed = verifySessionToken(jar.get(SESSION_COOKIE)?.value);
+  const authed = await verifySessionToken(jar.get(SESSION_COOKIE)?.value);
   if (!authed) redirect("/admin/login");
 
   const products = await listAllProductsForAdmin();
